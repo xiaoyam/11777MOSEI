@@ -77,12 +77,13 @@ def optimize(aud,vid,txt,ey,aud_en,txt_en,vid_en,model,c1,c2,multi_c,mode,max_ep
             vid_data= vid[idxes]
             labels = ey[idxes]
             # Encode all 3 modalities            
-            aud_context = aud_en(aud_data)
-            txt_context= txt_en(txt_data)
-            vid_context= vid_en(vid_data)
+            #aud_context = aud_en(aud_data)
+            #txt_context= txt_en(txt_data)
+            #vid_context= vid_en(vid_data)
             # Prevent backprop
             if mode == 'rubi':
-                lan_con_det = txt_context.detach()
+                lan_con_det = txt_data.detach()    
+            #lan_con_det = txt_context.detach()
             #print("myshape", lstm_out.shape)
             #init_hidden = torch.randn(2, time_step, 256)
             
@@ -95,8 +96,8 @@ def optimize(aud,vid,txt,ey,aud_en,txt_en,vid_en,model,c1,c2,multi_c,mode,max_ep
                 lan_pred = lan_pred_prep
             #print((lan_pred > 2).sum()) 
             
-                multi_seq = torch.cat((aud_context, txt_context, vid_context),2)
-                #multi_seq = model(multi_context)
+                multi_context = torch.cat((aud_data, txt_data, vid_data),2)
+                multi_seq = model(multi_context)
                 multi_pred_prep, _ = multi_c(multi_seq)
              
                 multi_pred = multi_pred_prep
@@ -104,7 +105,7 @@ def optimize(aud,vid,txt,ey,aud_en,txt_en,vid_en,model,c1,c2,multi_c,mode,max_ep
                 combined = multi_pred * mask
                 pred = combined # / torch.sum(combined, dim = 1)[:, None]
             else:
-                multi_seq = torch.cat((aud_context, txt_context, vid_context),2)
+                multi_seq = torch.cat((aud_data, txt_data, vid_data),2)
                 #multi_context = torch.cat((aud_context, txt_context, vid_context),2)
                 #multi_seq = model(multi_context)
                 multi_pred_prep, _ = multi_c(multi_seq)
@@ -183,7 +184,7 @@ def optimize(aud,vid,txt,ey,aud_en,txt_en,vid_en,model,c1,c2,multi_c,mode,max_ep
 def main():
     device = torch.device('cuda')
     data = load_data()
-    (aud_train, aud_test), (vid_train, vid_test), (txt_train, txt_test), (ey_tr, ey_te), (txt2, txt4, txt6) = data
+    (aud_train, aud_test), (vid_train, vid_test), (txt_train, txt_test), (ey_tr, ey_te) = data
     txt_dim = txt_train.shape[-1]
     aud_dim = aud_train.shape[-1]
     vid_dim = vid_train.shape[-1]
@@ -229,32 +230,18 @@ def main():
     #txt_rnd_noise =
 
 
-    txt_rnd_noise = txt_test + torch.tensor(np.random.normal(0, 0.01, size = (txt_test.shape[0], txt_test.shape[1], txt_test.shape[2])), dtype = torch.float, requires_grad = False, device = device)
-    drop1 = nn.Dropout(0.4)
-    drop2 = nn.Dropout(0.6)
-    txt_rnd_drop1 = drop1(txt_test)
-    txt_rnd_drop2 = drop2(txt_test)
+
     #optimizers = [aud_en_op, vid_en_op, txt_en_op, model_op, c1_op, c2_op, multi_c_op]
     best_loss = None
     best_ten = None
     #for i in range(100): 
-    optimize(aud_train, vid_train, txt_train, ey_tr, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'train', 1, optimizers)
-    model_file = "../saved/model.h5"
+    optimize(aud_train, vid_train, txt_train, ey_tr, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'rubi', 100, optimizers)
     cur_loss= optimize(aud_test, vid_test, txt_test, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
     #    if best_loss == None or best_loss > cur_loss:
     #        best_loss = cur_loss
     #        best_ten = cur_ten
     #print(best_loss, "haha")
-    rnd_noise_loss = optimize(aud_test, vid_test, txt_rnd_noise, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
-    drop1_loss = optimize(aud_test, vid_test, txt_rnd_drop1, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
-    drop2_loss = optimize(aud_test, vid_test, txt_rnd_drop2, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
-    loss2E = optimize(aud_test, vid_test, txt2, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
-    loss4E = optimize(aud_test, vid_test, txt4, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
-    loss6E = optimize(aud_test, vid_test, txt6, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
-    #2Eloss = optimize(aud_test, vid_test, txt2E, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2,multi_classi, 'test', 1, optimizers)
-    #4Eloss = optimize(aud_test, vid_test, txt4E, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers)
-    #6Eloss = optimize(aud_test, vid_test, txt6E, ey_te, aud_en, txt_en, vid_en, model, classifier1, classifier2, multi_classi, 'test', 1, optimizers) 
-    print("best result:", cur_loss, rnd_noise_loss, drop1_loss, drop2_loss, loss2E, loss4E, loss6E) 
+    print("best result:", cur_loss) 
     print("All done!!")
     return
 

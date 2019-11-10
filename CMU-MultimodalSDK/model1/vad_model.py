@@ -151,4 +151,3 @@ class LSTM(nn.Module):
             param.requires_grad = True
         for param in self.linear.parameters():
             param.requires_grad = True
-
