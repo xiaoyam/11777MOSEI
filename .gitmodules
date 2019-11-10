@@ -1,0 +1,3 @@
+[submodule "CMU-MultimodalSDK/vqa"]
+	path = CMU-MultimodalSDK/vqa
+	url = https://github.com/sthkindacrazy/vqa
